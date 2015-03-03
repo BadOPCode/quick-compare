@@ -4,8 +4,6 @@
  * Shawn Rapp - 2015-02-18
  */
  
- var shell = require("shelljs");
-
 /**
  * returns all the differences between two files
  * fileCompare(file1, file2, callback)
@@ -70,7 +68,12 @@ module.exports.fileCompare = function(file1, file2, callback) {
     });
 };
 
-//directoryCompare(directory1, directory2)
+
+/**
+ * returns all the differences between two directories returning the difference
+ * of each file it finds.
+ * directoryCompare(directory1, directory2)
+ */
 module.exports.directoryCompare = function(directory1, directory2, cb_Results){
     var fs = require("fs");
     //var new_compare_object = [];
