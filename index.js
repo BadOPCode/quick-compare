@@ -3,42 +3,45 @@
  * File comparing
  * Shawn Rapp - 2015-02-18
  */
+
+var fs = require('fs');
  
+
+function tagDifferences(ret_obj) {
+    var path = require("path");
+
+    if (ret_obj[0].exists) {
+        ret_obj[0].file_name = path.basename(ret_obj[0].fullPath);
+    }
+    if (ret_obj[1].exists) {
+        ret_obj[1].file_name = path.basename(ret_obj[1].fullPath);
+    }
+    
+    if (ret_obj[0].file_name === ret_obj[1].file_name) {
+        ret_obj[0].match_file_name = true;
+        ret_obj[1].match_file_name = true;
+    } else {
+        ret_obj[0].match_file_name = false;
+        ret_obj[1].match_file_name = false;
+    }
+    
+    if (ret_obj[0].exists && ret_obj[1].exists) {
+        ret_obj[0].size_diff = ret_obj[0].stats.size - ret_obj[1].stats.size;
+        ret_obj[1].size_diff = ret_obj[1].stats.size - ret_obj[0].stats.size;
+        ret_obj[0].modified_diff = ret_obj[0].stats.mtime.getTime() - ret_obj[1].stats.mtime.getTime();
+        ret_obj[1].modified_diff = ret_obj[1].stats.mtime.getTime() - ret_obj[0].stats.mtime.getTime();
+    }
+    
+    return ret_obj;
+}
+
+
 /**
- * returns all the differences between two files
  * fileCompare(file1, file2, callback)
+ * returns all the differences between two files
  */
 module.exports.fileCompare = function(file1, file2, callback) {
-    var fs = require('fs');
     var ret_obj = [{fullPath:file1, exists:false}, {fullPath:file2, exists:false}];
-
-    function tagDifferences(ret_obj) {
-        var path = require("path");
-
-        if (ret_obj[0].exists) {
-            ret_obj[0].file_name = path.basename(ret_obj[0].fullPath);
-        }
-        if (ret_obj[1].exists) {
-            ret_obj[1].file_name = path.basename(ret_obj[1].fullPath);
-        }
-        
-        if (ret_obj[0].file_name === ret_obj[1].file_name) {
-            ret_obj[0].match_file_name = true;
-            ret_obj[1].match_file_name = true;
-        } else {
-            ret_obj[0].match_file_name = false;
-            ret_obj[1].match_file_name = false;
-        }
-        
-        if (ret_obj[0].exists && ret_obj[1].exists) {
-            ret_obj[0].size_diff = ret_obj[0].stats.size - ret_obj[1].stats.size;
-            ret_obj[1].size_diff = ret_obj[1].stats.size - ret_obj[0].stats.size;
-            ret_obj[0].modified_diff = ret_obj[0].stats.mtime.getTime() - ret_obj[1].stats.mtime.getTime();
-            ret_obj[1].modified_diff = ret_obj[1].stats.mtime.getTime() - ret_obj[0].stats.mtime.getTime();
-        }
-        
-        return ret_obj;
-    }
 
     fs.open(file1, "r", function(err,fd){
         if (!err) {
@@ -70,12 +73,11 @@ module.exports.fileCompare = function(file1, file2, callback) {
 
 
 /**
+ * directoryCompare(directory1, directory2)
  * returns all the differences between two directories returning the difference
  * of each file it finds.
- * directoryCompare(directory1, directory2)
  */
 module.exports.directoryCompare = function(directory1, directory2, cb_Results){
-    var fs = require("fs");
     //var new_compare_object = [];
     fs.readdir(directory1, function(err,files){
         if (!err) {
@@ -100,4 +102,71 @@ module.exports.directoryCompare = function(directory1, directory2, cb_Results){
         } else { // most likely the directory doesn't exist
         }
     });
-} ;
+};
+
+/**
+ * compareHashFile(file_to_compare, hash_file, cb_Matches)
+ */
+module.exports.compareStatFile = function(compare_file, cb_Matches){
+    var path = require("path");
+    var file_path = path.dirname(compare_file);
+    var file_name = path.basename(compare_file);
+    
+    var hash_path = path.join("hashes", file_path);
+    var hash_file = path.join(hash_path, file_name+".hash");
+
+    var ret_obj = [{fullPath:compare_file, exists:false}, {fullPath:hash_file, exists:false}];
+
+    fs.open(compare_file, "r", function(err, fd){
+        if (!err) {
+            fs.stat(compare_file, function(err, stats){
+                if (!err) {
+                    ret_obj[0].exists = true;
+                    ret_obj[0].stats = stats;
+                    fs.readFile(hash_file, function(err, data){
+                       if (err) {
+                           cb_Matches(tagDifferences(ret_obj));
+                       } else {
+                           if (stats === data) {
+                                ret_obj[1].exists = true;
+                                ret_obj[1].stats = data;
+                                cb_Matches(tagDifferences(ret_obj));
+                           } else {
+                               cb_Matches(tagDifferences(ret_obj));
+                           }
+                       }
+                    });
+                } else {
+                    cb_Matches(tagDifferences(ret_obj));
+                }
+            });
+        } else {
+            cb_Matches(tagDifferences(ret_obj));
+        }
+    });
+};
+
+
+/**
+ * writeHashFile(compare_file)
+ */
+module.exports.writeStatFile = function(compare_file) {
+    fs.exists(compare_file, function(exists){
+        if (!exists) return; 
+    });
+    var path = require("path");
+    var mkdirp = require("mkdirp");
+    
+    var file_path = path.dirname(compare_file);
+    var file_name = path.basename(compare_file);
+    
+    var hash_path = path.join("hashes", file_path);
+    var hash_file = path.join(hash_path, file_name+".hash");
+    fs.exists(hash_path, function(exists){
+        if (!exists) mkdirp(hash_path);
+    });
+
+    fs.stat(compare_file, function(err, stats){
+        if (!err) fs.writeFile(hash_file, stats);
+    });
+};
