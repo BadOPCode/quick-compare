@@ -1,14 +1,21 @@
 # quick-compare
 Node module for doing quick file system compares.
-This is a really simplistic model that returns back a JSON object of the differences between files.
+This is a really simplistic model that returns back a JSON object of the 
+differences between files.  
+This module purely deals with the file system information.  The stats directory 
+is just a means of recording and comparing the same directory to itself.
 
 ## Reference
 
 ### fileCompare
 
-The method fileCompare just compares two files specified as strings and returns a callback with a JSON object that contains each files stat information in a object called stats, as well as three other properties.  fullPath; exists; size_diff; modified_diff.
+The method fileCompare just compares two files specified as strings and returns 
+a callback with a JSON object that contains each files stat information in a 
+object called stats, as well as three other properties.  fullPath; exists; 
+size_diff; modified_diff.
 fullPath is the path to the file that the current object in array is comparing.
-The method exists returns true if the file exists or false if the file can not be found.
+The method exists returns true if the file exists or false if the file can not 
+be found.
 size_diff is the difference in bytes from the compared other file in array.
 modified_diff is the difference in miliseconds from the other file in array.
 

@@ -112,8 +112,8 @@ module.exports.compareStatFile = function(compare_file, cb_Matches){
     var file_path = path.dirname(compare_file);
     var file_name = path.basename(compare_file);
     
-    var hash_path = path.join("hashes", file_path);
-    var hash_file = path.join(hash_path, file_name+".hash");
+    var hash_path = path.join("stats", file_path);
+    var hash_file = path.join(hash_path, file_name+".stat");
 
     var ret_obj = [{fullPath:compare_file, exists:false}, {fullPath:hash_file, exists:false}];
 
@@ -148,7 +148,7 @@ module.exports.compareStatFile = function(compare_file, cb_Matches){
 
 
 /**
- * writeHashFile(compare_file)
+ * writeStatFile(compare_file)
  */
 module.exports.writeStatFile = function(compare_file) {
     fs.exists(compare_file, function(exists){
@@ -160,8 +160,8 @@ module.exports.writeStatFile = function(compare_file) {
     var file_path = path.dirname(compare_file);
     var file_name = path.basename(compare_file);
     
-    var hash_path = path.join("hashes", file_path);
-    var hash_file = path.join(hash_path, file_name+".hash");
+    var hash_path = path.join("stats", file_path);
+    var hash_file = path.join(hash_path, file_name+".stat");
     fs.exists(hash_path, function(exists){
         if (!exists) mkdirp(hash_path);
     });
