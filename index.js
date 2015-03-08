@@ -7,6 +7,20 @@
 var fs = require('fs');
  
 
+function fixCompareObject(stat_obj) {
+    if (typeof stat_obj.mtime === "string") {
+        stat_obj.atime = new Date(stat_obj.atime);
+    }
+    if (typeof stat_obj.mtime === "string") {
+        stat_obj.ctime = new Date(stat_obj.ctime);
+    }
+    if (typeof stat_obj.mtime === "string") {
+        stat_obj.mtime = new Date(stat_obj.mtime);
+    }
+    
+    return stat_obj;
+}
+
 function tagDifferences(ret_obj) {
     var path = require("path");
 
@@ -64,7 +78,6 @@ module.exports.fileCompare = function(file1, file2, callback) {
                 });
             } else {
                 ret_obj = tagDifferences(ret_obj);
-                //console.log(ret_obj);
                 callback(ret_obj);
             }
         });
@@ -79,16 +92,17 @@ module.exports.fileCompare = function(file1, file2, callback) {
  */
 module.exports.directoryCompare = function(directory1, directory2, cb_Results){
     //var new_compare_object = [];
+    var path = require("path");
     fs.readdir(directory1, function(err,files){
         if (!err) {
             var async = require("async");
-            
+
             async.each(files, function(cur_file_name, callback){
-                var dir1_file = directory1+"/"+cur_file_name;
+                var dir1_file = path.join(directory1, cur_file_name);
 
                 fs.stat(dir1_file, function(err, stats){
                     if (!err) {
-                        var dir2_file = directory2+"/"+cur_file_name;
+                        var dir2_file = path.join(directory2, cur_file_name);
                         if (stats.isDirectory()) {
                             exports.directoryCompare(dir1_file, dir2_file, cb_Results);
                         } else if (stats.isFile()) {
@@ -105,17 +119,17 @@ module.exports.directoryCompare = function(directory1, directory2, cb_Results){
 };
 
 /**
- * compareHashFile(file_to_compare, hash_file, cb_Matches)
+ * compareHashFile(file_to_compare, cb_Matches)
  */
 module.exports.compareStatFile = function(compare_file, cb_Matches){
     var path = require("path");
     var file_path = path.dirname(compare_file);
     var file_name = path.basename(compare_file);
     
-    var hash_path = path.join("stats", file_path);
-    var hash_file = path.join(hash_path, file_name+".stat");
+    var stats_path = path.join("stats", file_path);
+    var stats_name = path.join(stats_path, file_name+".stat");
 
-    var ret_obj = [{fullPath:compare_file, exists:false}, {fullPath:hash_file, exists:false}];
+    var ret_obj = [{fullPath:compare_file, exists:false}, {fullPath:stats_name, exists:false}];
 
     fs.open(compare_file, "r", function(err, fd){
         if (!err) {
@@ -123,17 +137,22 @@ module.exports.compareStatFile = function(compare_file, cb_Matches){
                 if (!err) {
                     ret_obj[0].exists = true;
                     ret_obj[0].stats = stats;
-                    fs.readFile(hash_file, function(err, data){
-                       if (err) {
-                           cb_Matches(tagDifferences(ret_obj));
-                       } else {
-                           if (stats === data) {
-                                ret_obj[1].exists = true;
-                                ret_obj[1].stats = data;
-                                cb_Matches(tagDifferences(ret_obj));
-                           } else {
-                               cb_Matches(tagDifferences(ret_obj));
-                           }
+                    fs.readFile(stats_name, function(err, data){
+                        var stat_obj = {};
+                        try {
+                            if (typeof data !== 'undefined')
+                                stat_obj = fixCompareObject(JSON.parse(data));
+                        } catch(err) {
+                            console.log(err);
+                            console.log(data);
+                        }
+                        
+                        if (err) {
+                            cb_Matches(ret_obj);
+                        } else {
+                            ret_obj[1].exists = true;
+                            ret_obj[1].stats = stat_obj;
+                            cb_Matches(tagDifferences(ret_obj));
                        }
                     });
                 } else {
@@ -141,7 +160,7 @@ module.exports.compareStatFile = function(compare_file, cb_Matches){
                 }
             });
         } else {
-            cb_Matches(tagDifferences(ret_obj));
+            cb_Matches(ret_obj);
         }
     });
 };
@@ -162,11 +181,44 @@ module.exports.writeStatFile = function(compare_file) {
     
     var hash_path = path.join("stats", file_path);
     var hash_file = path.join(hash_path, file_name+".stat");
-    fs.exists(hash_path, function(exists){
-        if (!exists) mkdirp(hash_path);
+    fs.stat(compare_file, function(err_stat, stats){
+        mkdirp(hash_path, function(err_hash_path){
+            if (!err_stat && !err_hash_path) fs.writeFile(hash_file, JSON.stringify(stats), function(err_write){
+                if (err_write) {
+                    //error happened.
+                }
+            });
+        });
     });
+};
 
-    fs.stat(compare_file, function(err, stats){
-        if (!err) fs.writeFile(hash_file, stats);
+
+/**
+ * 
+ */
+module.exports.compareStatDirectory = function(compare_directory, cb_Result) {
+    var path = require("path");
+    fs.readdir(compare_directory, function(err, files){
+        if (!err) {
+            var async = require("async");
+            async.each(files, function(cur_file_name, callback){
+                var dir1_file = path.join(compare_directory, cur_file_name);
+
+                fs.stat(dir1_file, function(err, stats){
+                    if (!err) {
+//                        var dir2_file = path.join("stats", cur_file_name+".stat");
+                        if (stats.isDirectory()) {
+                            exports.compareStatDirectory(dir1_file, cb_Result);
+                        } else if (stats.isFile()) {
+                            exports.compareStatFile(dir1_file, function(compare_object){
+                                cb_Result(compare_object); 
+                            });
+                        }
+                    }
+                });
+            });
+        } else {
+            //error happened
+        }
     });
 };
