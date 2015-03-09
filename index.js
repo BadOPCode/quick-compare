@@ -206,7 +206,6 @@ module.exports.compareStatDirectory = function(compare_directory, cb_Result) {
 
                 fs.stat(dir1_file, function(err, stats){
                     if (!err) {
-//                        var dir2_file = path.join("stats", cur_file_name+".stat");
                         if (stats.isDirectory()) {
                             exports.compareStatDirectory(dir1_file, cb_Result);
                         } else if (stats.isFile()) {
